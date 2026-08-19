@@ -299,22 +299,18 @@ def cargar_historia(_firma_historia, _firma_lookups):
 
 def _excluir_ofertas_perdida_total_docencia(ancha: pd.DataFrame) -> tuple:
     """Misma regla que _excluir_ofertas_perdida_total_historia, pero aplicada
-    sobre la tabla ANCHA de docencia (ya con NOMBRE_PROGRAMA, TERRITORIAL y
-    DOCENTE resueltos) y agrupando por docente + materia + programa +
-    territorial + período -- el mismo grano que usa la tabla de detalle
-    "¿Qué dicta un docente en particular?" de la página de Docencia.
+    sobre la tabla ANCHA de docencia (ya con NOMBRE_PROGRAMA y DOCENTE
+    resueltos) y agrupando por docente + materia + programa + período -- el
+    mismo grano que usa la tabla de detalle "¿Qué dicta un docente en
+    particular?" de la página de Docencia.
 
-    Importante: agrupar solo por materia+período (como se hacía al principio)
-    es demasiado ancho -- una materia como "Electiva III" suele dictarla
-    varios docentes distintos en el mismo período, así que el 100% de
-    pérdida de UN docente puntual quedaba diluido entre los demás que sí
-    tuvieron aprobados. Agregar TERRITORIAL corrige el mismo problema pero
-    dentro de un solo docente: un docente puede dictar la misma materia a
-    varias territoriales en el mismo período, cada una con muy pocos
-    matriculados -- si UNA territorial puntual pierde el 100% pero las demás
-    no, agrupar sin territorial también diluía ese caso."""
+    Importante: agrupar solo por materia+período (como se hacía antes) es
+    demasiado ancho -- una materia como "Electiva III" suele dictarla varios
+    docentes distintos en el mismo período, así que el 100% de pérdida de UN
+    docente puntual quedaba diluido entre los demás que sí tuvieron
+    aprobados, y la regla nunca se activaba para ese caso puntual."""
     conteo = ancha.groupby(
-        ["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "TERRITORIAL", "COD_PERIODO"],
+        ["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "COD_PERIODO"],
         observed=True, dropna=False,
     ).agg(
         matriculados=("MATRICULADOS", "sum"),
@@ -324,14 +320,14 @@ def _excluir_ofertas_perdida_total_docencia(ancha: pd.DataFrame) -> tuple:
     invalidas = conteo[
         (conteo["matriculados"] >= MATRICULADOS_MINIMO_OFERTA_INVALIDA)
         & (conteo["matriculados"] == conteo["pierden"])
-    ][["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "TERRITORIAL", "COD_PERIODO"]]
+    ][["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "COD_PERIODO"]]
 
     if invalidas.empty:
         return ancha, 0
 
     ancha = ancha.merge(
         invalidas.assign(_oferta_invalida=True),
-        on=["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "TERRITORIAL", "COD_PERIODO"],
+        on=["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "COD_PERIODO"],
         how="left",
     )
     ancha = ancha[ancha["_oferta_invalida"].isna()].drop(columns=["_oferta_invalida"])

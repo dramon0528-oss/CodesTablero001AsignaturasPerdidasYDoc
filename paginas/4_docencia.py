@@ -114,13 +114,13 @@ else:
     elegido = st.selectbox("Elige un docente", lista_docentes)
     detalle = (
         filtrado[filtrado["DOCENTE"] == elegido]
-        .groupby(["NOM_MATERIA", "NOMBRE_PROGRAMA", "COD_PERIODO"], observed=True, dropna=False)
+        .groupby(["NOM_MATERIA", "NOMBRE_PROGRAMA", "TERRITORIAL", "COD_PERIODO"], observed=True, dropna=False)
         .agg(matriculados=("MATRICULADOS", "sum"), aprueban=("APRUEBAN", "sum"), pierden=("PIERDEN", "sum"))
         .reset_index()
     )
     detalle["tasa_perdida"] = (detalle["pierden"] / detalle["matriculados"] * 100).round(1)
     detalle = detalle.rename(columns={
-        "NOM_MATERIA": "Materia", "NOMBRE_PROGRAMA": "Programa", "COD_PERIODO": "Período",
+        "NOM_MATERIA": "Materia", "NOMBRE_PROGRAMA": "Programa", "TERRITORIAL": "Territorial", "COD_PERIODO": "Período",
         "matriculados": "Matriculados", "aprueban": "Aprueban", "pierden": "Pierden",
         "tasa_perdida": "Tasa pérdida",
     }).sort_values(["Período", "Materia"], ascending=[False, True])
