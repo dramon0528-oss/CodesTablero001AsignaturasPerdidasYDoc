@@ -12,3 +12,7 @@ data/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Metadato generado solo en tiempo de ejecución (fecha del último commit de
+# datos) -- ver sincronizar_datos.py. No hace falta subirlo nunca.
+.ultima_actualizacion_datos.json

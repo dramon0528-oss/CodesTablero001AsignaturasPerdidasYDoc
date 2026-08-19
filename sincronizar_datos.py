@@ -18,15 +18,22 @@ Configuración necesaria en Secrets (ver README.md):
 """
 
 import io
+import json
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
 import requests
 import streamlit as st
 
-from datos import CARPETA_DATOS
+from datos import CARPETA_DATOS, ZONA_HORARIA_COLOMBIA
 
 RAMA_DATOS = "main"
+
+# Metadato aparte de data/ a propósito: _sincronizar_carpeta() borra de data/
+# cualquier archivo que no venga en el zip del repositorio de datos, así que
+# si este archivo quedara adentro se autodestruiría en cada sincronización.
+RUTA_META = CARPETA_DATOS.parent / ".ultima_actualizacion_datos.json"
 
 
 def _descargar_zip(repo: str, token: str) -> bytes:
@@ -50,6 +57,24 @@ def _descargar_zip(repo: str, token: str) -> bytes:
         resp = requests.get(resp.headers["Location"], headers=headers, timeout=120)
     resp.raise_for_status()
     return resp.content
+
+
+def _fecha_ultimo_commit(repo: str, token: str) -> str:
+    """Fecha (ISO 8601, UTC) del commit más reciente en el repositorio de
+    datos -- esto es lo que de verdad responde "¿cuándo se cargaron las
+    bases nuevas?". A propósito NO usamos la fecha del archivo local: esa
+    cambia cada vez que el servidor sincroniza (aunque las bases llevan un
+    mes sin cambiar), y terminaría pareciendo que los datos están más
+    frescos de lo que en realidad están."""
+    url = f"https://api.github.com/repos/{repo}/commits/{RAMA_DATOS}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    resp = requests.get(url, headers=headers, timeout=30)
+    resp.raise_for_status()
+    return resp.json()["commit"]["committer"]["date"]
 
 
 def _escribir_si_cambio(ruta: Path, contenido: bytes) -> bool:
@@ -120,6 +145,31 @@ def sincronizar_datos_remotos():
     try:
         contenido_zip = _descargar_zip(repo, token)
         cambios = _sincronizar_carpeta(contenido_zip, CARPETA_DATOS)
+        try:
+            fecha_commit = _fecha_ultimo_commit(repo, token)
+            RUTA_META.write_text(json.dumps({"fecha_commit": fecha_commit}))
+        except Exception:
+            # Si esto puntual falla (por ejemplo, un error de red pasajero),
+            # no arriesgamos la sincronización de los datos en sí -- la app
+            # sigue funcionando, solo se queda con la fecha guardada antes.
+            pass
         return {"ok": True, "cambios": cambios}
     except Exception as e:
         return {"ok": False, "motivo": "error", "detalle": str(e)}
+
+
+def fecha_ultima_actualizacion_remota():
+    """Fecha del último commit en el repositorio de datos (cuándo se
+    cargaron ahí las bases más recientes), en hora de Colombia -- tal como
+    quedó guardada en la sincronización más reciente. Devuelve None si
+    todavía no se ha sincronizado ni una vez con éxito (por ejemplo, en una
+    copia local sin Secrets configurados), en cuyo caso app.py usa como
+    respaldo la fecha del archivo local (ver datos.fecha_ultima_actualizacion)."""
+    if not RUTA_META.exists():
+        return None
+    try:
+        fecha_iso = json.loads(RUTA_META.read_text())["fecha_commit"]
+        fecha_utc = datetime.fromisoformat(fecha_iso.replace("Z", "+00:00"))
+        return fecha_utc.astimezone(ZONA_HORARIA_COLOMBIA)
+    except Exception:
+        return None

@@ -48,12 +48,17 @@ if st.sidebar.button("🔄 Actualizar datos ahora"):
     st.rerun()
 
 # Para que cualquiera que abra el tablero sepa qué tan frescos son los datos,
-# sin tener que ir a revisar GitHub -- ver datos.fecha_ultima_actualizacion().
+# sin tener que ir a revisar GitHub. Preferimos la fecha del último commit en
+# el repositorio de datos (cuándo Camilo cargó ahí las bases más recientes) --
+# NO la fecha del archivo local, que cambia cada vez que el servidor
+# sincroniza aunque las bases lleven semanas sin cambiar de verdad. Si todavía
+# no hay ninguna sincronización remota exitosa (ej: copia local sin Secrets),
+# caemos de respaldo a la fecha del archivo local.
 # IMPORTANTE: esto va ANTES de pg.run(), no después -- varias páginas llaman
 # st.stop() cuando un filtro no deja resultados (para no seguir dibujando algo
 # vacío más abajo), y st.stop() corta el resto del script completo. Si esto
 # quedara después de pg.run(), desaparecería justo en esos casos.
-_fecha_datos = datos.fecha_ultima_actualizacion()
+_fecha_datos = sincronizar_datos.fecha_ultima_actualizacion_remota() or datos.fecha_ultima_actualizacion()
 if _fecha_datos:
     st.sidebar.caption(f"📅 Datos actualizados: {_fecha_datos.strftime('%d/%m/%Y %H:%M')}")
 
