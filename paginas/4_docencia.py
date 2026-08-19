@@ -33,14 +33,14 @@ sin_identificar = int(filtrado.loc[filtrado["DOCENTE"] == "(Sin identificar)", "
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Docentes", f"{total_docentes:,}")
-c2.metric("Matriculados", f"{matriculados_total:,}")
+c2.metric("Registro de matrículas", f"{matriculados_total:,}")
 c3.metric("Tasa de aprobación", f"{tasa_aprob:.1%}" if tasa_aprob is not None else "—")
 c4.metric("Tasa de pérdida", f"{tasa_perd:.1%}" if tasa_perd is not None else "—")
 if sin_identificar:
     st.caption(
         f"⚠️ {sin_identificar:,} matrícula(s) no tienen docente identificado en el archivo de "
-        f"origen — se cuentan en los totales de arriba, pero no pueden aparecer en el ranking "
-        f"de \"peor docente\" porque no hay a quién atribuírselas."
+        f"origen — se cuentan en los totales de la parte superior, pero no pueden aparecer en el ranking "
+        f"de docentes porque no hay a quién atribuírselas."
     )
 
 st.divider()
