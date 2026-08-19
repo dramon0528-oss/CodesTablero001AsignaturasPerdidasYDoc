@@ -297,12 +297,22 @@ def cargar_historia(_firma_historia, _firma_lookups):
     }
 
 
-def _excluir_ofertas_perdida_total_docencia(fact: pd.DataFrame) -> tuple:
-    """Misma regla que _excluir_ofertas_perdida_total_historia, pero
-    Fact_Docencia ya viene agregada por fila (MATRICULADOS/PIERDEN son
-    conteos, no 1 fila = 1 estudiante) -- así que aquí se suma por
-    materia+período antes de decidir si toda la oferta se omite."""
-    conteo = fact.groupby(["COD_MATERIA", "COD_PERIODO"], observed=True, dropna=False).agg(
+def _excluir_ofertas_perdida_total_docencia(ancha: pd.DataFrame) -> tuple:
+    """Misma regla que _excluir_ofertas_perdida_total_historia, pero aplicada
+    sobre la tabla ANCHA de docencia (ya con NOMBRE_PROGRAMA y DOCENTE
+    resueltos) y agrupando por docente + materia + programa + período -- el
+    mismo grano que usa la tabla de detalle "¿Qué dicta un docente en
+    particular?" de la página de Docencia.
+
+    Importante: agrupar solo por materia+período (como se hacía antes) es
+    demasiado ancho -- una materia como "Electiva III" suele dictarla varios
+    docentes distintos en el mismo período, así que el 100% de pérdida de UN
+    docente puntual quedaba diluido entre los demás que sí tuvieron
+    aprobados, y la regla nunca se activaba para ese caso puntual."""
+    conteo = ancha.groupby(
+        ["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "COD_PERIODO"],
+        observed=True, dropna=False,
+    ).agg(
         matriculados=("MATRICULADOS", "sum"),
         pierden=("PIERDEN", "sum"),
     ).reset_index()
@@ -310,22 +320,23 @@ def _excluir_ofertas_perdida_total_docencia(fact: pd.DataFrame) -> tuple:
     invalidas = conteo[
         (conteo["matriculados"] >= MATRICULADOS_MINIMO_OFERTA_INVALIDA)
         & (conteo["matriculados"] == conteo["pierden"])
-    ][["COD_MATERIA", "COD_PERIODO"]]
+    ][["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "COD_PERIODO"]]
 
     if invalidas.empty:
-        return fact, 0
+        return ancha, 0
 
-    fact = fact.merge(
-        invalidas.assign(_oferta_invalida=True), on=["COD_MATERIA", "COD_PERIODO"], how="left"
+    ancha = ancha.merge(
+        invalidas.assign(_oferta_invalida=True),
+        on=["IDENTIFICACION_DOCENTE", "COD_MATERIA", "NOMBRE_PROGRAMA", "COD_PERIODO"],
+        how="left",
     )
-    fact = fact[fact["_oferta_invalida"].isna()].drop(columns=["_oferta_invalida"])
-    return fact, len(invalidas)
+    ancha = ancha[ancha["_oferta_invalida"].isna()].drop(columns=["_oferta_invalida"])
+    return ancha, len(invalidas)
 
 
 @st.cache_data(show_spinner="Preparando docencia…")
 def cargar_docencia(_firma_docencia, _firma_lookups):
     dim_docente, fact = _cargar_docencia_cruda(_firma_docencia)
-    fact, n_ofertas_excluidas = _excluir_ofertas_perdida_total_docencia(fact)
 
     territoriales = pd.read_excel(RUTA_TERRITORIALES, sheet_name="Territoriales")
     fact = fact.merge(territoriales, how="left", left_on="COD_UNIDAD", right_on="COD_PRO").drop(columns=["COD_PRO"])
@@ -338,6 +349,12 @@ def cargar_docencia(_firma_docencia, _firma_lookups):
 
     ancha = fact.merge(dim_docente, on="IDENTIFICACION_DOCENTE", how="left")
     ancha["DOCENTE"] = ancha["DOCENTE"].fillna("(Sin identificar)")
+
+    # La regla del 100% de pérdida se aplica aquí (sobre ancha, no sobre
+    # fact) porque necesita NOMBRE_PROGRAMA y DOCENTE ya resueltos -- ver el
+    # comentario dentro de la función. fact_docencia (sin filtrar) se sigue
+    # devolviendo tal cual por si algo más lo llegara a necesitar.
+    ancha, n_ofertas_excluidas = _excluir_ofertas_perdida_total_docencia(ancha)
 
     for c in ["NIVEL_EDUCATIVO", "NOMBRE_PROGRAMA", "MODALIDAD", "TERRITORIAL", "CETAP", "DOCENTE"]:
         if c in ancha.columns:
