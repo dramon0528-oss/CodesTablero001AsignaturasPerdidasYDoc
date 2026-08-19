@@ -20,7 +20,11 @@ def _opciones(df, col):
 
 def filtro_historia(ancha):
     st.markdown("##### Filtros")
-    col1, col2, col3, col4 = st.columns(4)
+    col0, col1, col2, col3, col4 = st.columns(5)
+    with col0:
+        territoriales = st.multiselect(
+            "Territorial", _opciones(ancha, "TERRITORIAL"), key="f_historia_territorial"
+        )
     with col1:
         programas = st.multiselect(
             "Programa", _opciones(ancha, "NOMBRE_PROGRAMA"), key="f_historia_programa"
@@ -51,6 +55,8 @@ def filtro_historia(ancha):
             )
 
     filtrado = ancha
+    if territoriales:
+        filtrado = filtrado[filtrado["TERRITORIAL"].isin(territoriales)]
     if programas:
         filtrado = filtrado[filtrado["NOMBRE_PROGRAMA"].isin(programas)]
     if modalidades:
@@ -67,7 +73,11 @@ def filtro_historia(ancha):
 
 def filtro_docencia(ancha):
     st.markdown("##### Filtros")
-    col1, col2, col3, col4 = st.columns(4)
+    col0, col1, col2, col3, col4 = st.columns(5)
+    with col0:
+        territoriales = st.multiselect(
+            "Territorial", _opciones(ancha, "TERRITORIAL"), key="f_docencia_territorial"
+        )
     with col1:
         programas = st.multiselect(
             "Programa", _opciones(ancha, "NOMBRE_PROGRAMA"), key="f_docencia_programa"
@@ -89,6 +99,8 @@ def filtro_docencia(ancha):
             )
 
     filtrado = ancha
+    if territoriales:
+        filtrado = filtrado[filtrado["TERRITORIAL"].isin(territoriales)]
     if programas:
         filtrado = filtrado[filtrado["NOMBRE_PROGRAMA"].isin(programas)]
     if modalidades:
