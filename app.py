@@ -13,6 +13,7 @@ import streamlit as st
 
 import datos
 import sincronizar_datos
+import tema
 from auth import check_password
 
 # Path absoluto (no un string relativo como "assets/logo.png") por la misma
@@ -35,6 +36,30 @@ if not check_password():
 # alto); el archivo es horizontal (escudo + texto), tal como recomienda la
 # documentación para este parámetro.
 st.logo(LOGO, size="large")
+
+# Dos toques de marca que st.logo()/st.title() no dejan configurar directo:
+# 1) el título grande (st.title) de cada página, en el azul institucional
+#    (mismo AZUL_ESAP que ya usa auth.py, para que se vea consistente).
+# 2) el logo de la barra lateral un poco más grande que el máximo que ofrece
+#    size="large" (32px). El selector [data-testid="stSidebarLogo"] es el que
+#    usa el propio Streamlit instalado (1.61.1) específicamente para el logo
+#    DENTRO de la barra lateral -- no toca el que aparece arriba a la
+#    izquierda si alguien la colapsa (ese usa data-testid="stLogo").
+# Si más adelante quieres otro azul o otro tamaño, este es el único lugar
+# que hay que tocar.
+st.markdown(
+    f"""
+    <style>
+    h1 {{ color: {tema.AZUL_ESAP} !important; }}
+    [data-testid="stSidebar"] [data-testid="stSidebarLogo"] {{
+        height: 46px !important;
+        width: auto !important;
+        max-width: none !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 paginas = {
     "Historia académica": [

@@ -21,6 +21,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from tema import AZUL_ESAP
+
 # Mismo path absoluto que usa app.py para el logo -- ver el comentario ahí.
 LOGO = Path(__file__).parent / "assets" / "logo_esap.png"
 
@@ -54,11 +56,11 @@ def check_password() -> bool:
     _col_logo.image(str(LOGO))
 
     st.markdown(
-        """
+        f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&display=swap');
         </style>
-        <h2 style='text-align: center; text-transform: uppercase; color: #003287;
+        <h2 style='text-align: center; text-transform: uppercase; color: {AZUL_ESAP};
                    font-family: "Montserrat", sans-serif; font-weight: 800;
                    letter-spacing: 1px;'>
             🔒 Tablero de Seguimiento Académico
