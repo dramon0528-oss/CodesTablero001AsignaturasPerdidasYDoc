@@ -11,6 +11,14 @@ import plotly.graph_objects as go
 import plotly.io as pio
 
 # ---------------------------------------------------------------------------
+# Identidad de marca -- distinto de la paleta de datos de abajo: esto es el
+# azul institucional de la ESAP (tomado por muestreo directo de
+# assets/logo_esap.png, no es una aproximación) para "chrome" de interfaz
+# -- títulos, pantalla de login -- no para graficar datos.
+# ---------------------------------------------------------------------------
+AZUL_ESAP = "#003287"
+
+# ---------------------------------------------------------------------------
 # Paleta categórica (orden fijo — nunca la reordenes ni la cicles; el orden es
 # justo lo que la hace distinguible para daltonismo). Úsala solo cuando las
 # categorías NO tengan una lectura de "bueno/malo" propia (para eso existe la

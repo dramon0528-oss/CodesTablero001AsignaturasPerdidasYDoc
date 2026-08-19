@@ -21,6 +21,8 @@ from pathlib import Path
 
 import streamlit as st
 
+from tema import AZUL_ESAP
+
 # Mismo path absoluto que usa app.py para el logo -- ver el comentario ahí.
 LOGO = Path(__file__).parent / "assets" / "logo_esap.png"
 
@@ -53,12 +55,13 @@ def check_password() -> bool:
     _col_izq, _col_logo, _col_der = st.columns([1, 2, 1])
     _col_logo.image(str(LOGO))
 
+<<<<<<< HEAD
     st.markdown(
-        """
+        f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@800&display=swap');
         </style>
-        <h2 style='text-align: center; text-transform: uppercase; color: #003287;
+        <h2 style='text-align: center; text-transform: uppercase; color: {AZUL_ESAP};
                    font-family: "Montserrat", sans-serif; font-weight: 800;
                    letter-spacing: 1px;'>
             🔒 Tablero de Seguimiento Académico
@@ -66,6 +69,9 @@ def check_password() -> bool:
         """,
         unsafe_allow_html=True,
     )
+=======
+    st.markdown("<h2 style='text-align: center;'>🔒 Tablero de Seguimiento Académico</h2>", unsafe_allow_html=True)
+>>>>>>> parent of 76a58b2 (Agrega territorial a la tabla docente y azul al título de ingreso)
     st.text_input(
         "Contraseña",
         type="password",
