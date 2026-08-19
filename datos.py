@@ -57,6 +57,18 @@ MAPA_NUMERO_INTENTO = {
     "Repite por quinta vez": 5,
 }
 
+# Si TODOS los matriculados de una materia+período puntual "pierden" (0%
+# aprueban), lo más probable no es que reprobaran de verdad, sino que el
+# curso se ofertó pero al final no se dictó -- y el sistema fuente marca a
+# todos como pérdida por defecto. Esa oferta completa se omite de los datos
+# (ver _excluir_ofertas_perdida_total_historia/_docencia más abajo).
+#
+# Este número es el mínimo de matriculados con resultado para que la regla
+# aplique. En 1 no hay ningún mínimo real (cualquier tamaño con 100% de
+# pérdida se omite) -- súbelo si con el tiempo ves casos chiquitos (2-3
+# estudiantes) que sí reprobaron de verdad y no quieres que se toquen.
+MATRICULADOS_MINIMO_OFERTA_INVALIDA = 1
+
 
 def _firma_carpeta(ruta: Path) -> tuple:
     """Huella (nombre, tamaño, fecha de modificación) de todos los archivos
@@ -209,6 +221,32 @@ def _calcular_resultado_materia(fact: pd.DataFrame, nivel_por_estudiante: pd.Ser
     return fact
 
 
+def _excluir_ofertas_perdida_total_historia(fact: pd.DataFrame) -> tuple:
+    """Si TODOS los matriculados de una materia+período puntual "pierden" (ver
+    MATRICULADOS_MINIMO_OFERTA_INVALIDA), se omite esa oferta COMPLETA -- no
+    solo las filas "Pierde" -- para no ensuciar ninguna cifra del tablero con
+    lo que probablemente sea un curso que se ofertó pero no se dictó.
+    Devuelve (fact_sin_esas_ofertas, cuántas ofertas se excluyeron)."""
+    conteo = fact.groupby(["COD_MATERIA_PK", "COD_PERIODO_PK"], observed=True, dropna=False).agg(
+        con_resultado=("RESULTADO_MATERIA", lambda s: s.isin(["Aprueba", "Pierde"]).sum()),
+        pierden=("RESULTADO_MATERIA", lambda s: (s == "Pierde").sum()),
+    ).reset_index()
+
+    invalidas = conteo[
+        (conteo["con_resultado"] >= MATRICULADOS_MINIMO_OFERTA_INVALIDA)
+        & (conteo["con_resultado"] == conteo["pierden"])
+    ][["COD_MATERIA_PK", "COD_PERIODO_PK"]]
+
+    if invalidas.empty:
+        return fact, 0
+
+    fact = fact.merge(
+        invalidas.assign(_oferta_invalida=True), on=["COD_MATERIA_PK", "COD_PERIODO_PK"], how="left"
+    )
+    fact = fact[fact["_oferta_invalida"].isna()].drop(columns=["_oferta_invalida"])
+    return fact, len(invalidas)
+
+
 @st.cache_data(show_spinner="Preparando historia académica…")
 def cargar_historia(_firma_historia, _firma_lookups):
     dim_periodo, dim_materia, dim_estudiante, fact = _cargar_historia_cruda(_firma_historia)
@@ -221,6 +259,7 @@ def cargar_historia(_firma_historia, _firma_lookups):
 
     nivel_por_estudiante = dim_estudiante.set_index("NUM_IDENTIFICACION")["NIVEL_EDUCATIVO"]
     fact = _calcular_resultado_materia(fact, nivel_por_estudiante)
+    fact, n_ofertas_excluidas = _excluir_ofertas_perdida_total_historia(fact)
 
     # Tabla ancha: 1 fila = 1 materia cursada, con todo lo necesario para
     # filtrar/graficar sin tener que hacer más merges en cada página.
@@ -254,12 +293,39 @@ def cargar_historia(_firma_historia, _firma_lookups):
         "dim_estudiante": dim_estudiante,
         "fact_historia_materia": fact,
         "ancha": ancha,
+        "ofertas_excluidas_perdida_total": n_ofertas_excluidas,
     }
+
+
+def _excluir_ofertas_perdida_total_docencia(fact: pd.DataFrame) -> tuple:
+    """Misma regla que _excluir_ofertas_perdida_total_historia, pero
+    Fact_Docencia ya viene agregada por fila (MATRICULADOS/PIERDEN son
+    conteos, no 1 fila = 1 estudiante) -- así que aquí se suma por
+    materia+período antes de decidir si toda la oferta se omite."""
+    conteo = fact.groupby(["COD_MATERIA", "COD_PERIODO"], observed=True, dropna=False).agg(
+        matriculados=("MATRICULADOS", "sum"),
+        pierden=("PIERDEN", "sum"),
+    ).reset_index()
+
+    invalidas = conteo[
+        (conteo["matriculados"] >= MATRICULADOS_MINIMO_OFERTA_INVALIDA)
+        & (conteo["matriculados"] == conteo["pierden"])
+    ][["COD_MATERIA", "COD_PERIODO"]]
+
+    if invalidas.empty:
+        return fact, 0
+
+    fact = fact.merge(
+        invalidas.assign(_oferta_invalida=True), on=["COD_MATERIA", "COD_PERIODO"], how="left"
+    )
+    fact = fact[fact["_oferta_invalida"].isna()].drop(columns=["_oferta_invalida"])
+    return fact, len(invalidas)
 
 
 @st.cache_data(show_spinner="Preparando docencia…")
 def cargar_docencia(_firma_docencia, _firma_lookups):
     dim_docente, fact = _cargar_docencia_cruda(_firma_docencia)
+    fact, n_ofertas_excluidas = _excluir_ofertas_perdida_total_docencia(fact)
 
     territoriales = pd.read_excel(RUTA_TERRITORIALES, sheet_name="Territoriales")
     fact = fact.merge(territoriales, how="left", left_on="COD_UNIDAD", right_on="COD_PRO").drop(columns=["COD_PRO"])
@@ -277,7 +343,12 @@ def cargar_docencia(_firma_docencia, _firma_lookups):
         if c in ancha.columns:
             ancha[c] = ancha[c].astype("category")
 
-    return {"dim_docente": dim_docente, "fact_docencia": fact, "ancha": ancha}
+    return {
+        "dim_docente": dim_docente,
+        "fact_docencia": fact,
+        "ancha": ancha,
+        "ofertas_excluidas_perdida_total": n_ofertas_excluidas,
+    }
 
 
 def cargar_todo():

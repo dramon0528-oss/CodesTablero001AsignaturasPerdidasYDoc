@@ -21,6 +21,14 @@ if not datos.datos_disponibles()["docencia"]:
 
 _, docencia = datos.cargar_todo()
 ancha = docencia["ancha"]
+
+if docencia.get("ofertas_excluidas_perdida_total"):
+    st.caption(
+        f"⚠️ Se omitieron {docencia['ofertas_excluidas_perdida_total']} oferta(s) de materia+período "
+        f"con 100% de pérdida (probable curso que se ofertó pero no se dictó) -- no se cuentan en "
+        f"ninguna cifra de este tablero."
+    )
+
 filtrado = filtro_docencia(ancha)
 st.divider()
 
@@ -33,14 +41,14 @@ sin_identificar = int(filtrado.loc[filtrado["DOCENTE"] == "(Sin identificar)", "
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Docentes", f"{total_docentes:,}")
-c2.metric("Registro de matrículas", f"{matriculados_total:,}")
+c2.metric("Matriculados", f"{matriculados_total:,}")
 c3.metric("Tasa de aprobación", f"{tasa_aprob:.1%}" if tasa_aprob is not None else "—")
 c4.metric("Tasa de pérdida", f"{tasa_perd:.1%}" if tasa_perd is not None else "—")
 if sin_identificar:
     st.caption(
         f"⚠️ {sin_identificar:,} matrícula(s) no tienen docente identificado en el archivo de "
-        f"origen — se cuentan en los totales de la parte superior, pero no pueden aparecer en el ranking "
-        f"de docentes porque no hay a quién atribuírselas."
+        f"origen — se cuentan en los totales de arriba, pero no pueden aparecer en el ranking "
+        f"de \"peor docente\" porque no hay a quién atribuírselas."
     )
 
 st.divider()
@@ -118,11 +126,11 @@ else:
     }).sort_values(["Período", "Materia"], ascending=[False, True])
 
     st.dataframe(
-    detalle, width="stretch", hide_index=True,
-    column_config={
-        "Matriculados": st.column_config.NumberColumn(alignment="center"),
-        "Aprueban": st.column_config.NumberColumn(alignment="center"),
-        "Pierden": st.column_config.NumberColumn(alignment="center"),
-        "Tasa pérdida": st.column_config.ProgressColumn(format="%.1f%%", min_value=0, max_value=100),
-    },
-)
+        detalle, width="stretch", hide_index=True,
+        column_config={
+            "Matriculados": st.column_config.NumberColumn(alignment="center"),
+            "Aprueban": st.column_config.NumberColumn(alignment="center"),
+            "Pierden": st.column_config.NumberColumn(alignment="center"),
+            "Tasa pérdida": st.column_config.ProgressColumn(format="%.1f%%", min_value=0, max_value=100),
+        },
+    )

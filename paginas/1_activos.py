@@ -30,6 +30,13 @@ if not disponibles["historia"]:
 historia, _ = datos.cargar_todo()
 ancha = historia["ancha"]
 
+if historia.get("ofertas_excluidas_perdida_total"):
+    st.caption(
+        f"⚠️ Se omitieron {historia['ofertas_excluidas_perdida_total']} oferta(s) de materia+período "
+        f"con 100% de pérdida (probable curso que se ofertó pero no se dictó) -- no se cuentan en "
+        f"ninguna cifra de este tablero."
+    )
+
 filtrado = filtro_historia(ancha)
 st.divider()
 
