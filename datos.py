@@ -482,6 +482,21 @@ def tasa_aprobacion_docencia(df):
     return int(df["APRUEBAN"].sum()) / matriculados
 
 
+def promedio_ponderado_nota(valores, pesos):
+    """Promedio ponderado de una columna que YA es un promedio por fila --
+    como PROMEDIO_APRUEBAN/PROMEDIO_PIERDEN de Fact_Docencia (un promedio de
+    nota por cada combinación docente+materia+grupo+período). Promediar esos
+    promedios directo, sin ponderar, da un número incorrecto en cuanto los
+    grupos no tienen el mismo tamaño -- esto pondera por cuántos estudiantes
+    hay detrás de cada promedio (ej. APRUEBAN/PIERDEN). Filas con peso 0
+    traen NaN en `valores` (no había a quién promediar ahí) y no afectan el
+    resultado. Devuelve None si ninguna fila del grupo tiene peso > 0."""
+    total_peso = pesos.sum()
+    if not total_peso:
+        return None
+    return float((valores * pesos).sum() / total_peso)
+
+
 def _resumen_agregado_docencia(df, columnas_llave):
     # dropna=False es obligatorio aquí: IDENTIFICACION_DOCENTE viene vacío en
     # algunas filas (ya lo sabíamos, el AVISO de Normalizar_profesores.py lo

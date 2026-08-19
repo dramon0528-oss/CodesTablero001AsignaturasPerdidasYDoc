@@ -3,6 +3,7 @@ Página "Docencia": peor docente, peor materia y detalle de qué dicta el
 docente que selecciones -- igual que ya tenías armado en Power BI.
 """
 
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -112,25 +113,61 @@ if not lista_docentes:
     st.info("No hay docentes identificados con los filtros actuales.")
 else:
     elegido = st.selectbox("Elige un docente", lista_docentes)
-    detalle = (
-        filtrado[filtrado["DOCENTE"] == elegido]
-        .groupby(["NOM_MATERIA", "NOMBRE_PROGRAMA", "TERRITORIAL", "COD_PERIODO"], observed=True, dropna=False)
-        .agg(matriculados=("MATRICULADOS", "sum"), aprueban=("APRUEBAN", "sum"), pierden=("PIERDEN", "sum"))
-        .reset_index()
-    )
+    datos_docente = filtrado[filtrado["DOCENTE"] == elegido]
+    llaves_detalle = ["NOM_MATERIA", "NOMBRE_PROGRAMA", "TERRITORIAL", "COD_PERIODO"]
+
+    # PROMEDIO_APRUEBAN/PROMEDIO_PIERDEN solo existen una vez que se corre la
+    # versión de Normalizar_profesores.py que ya las calcula Y se sube ese
+    # parquet nuevo al repositorio de datos -- mientras eso no pase, seguimos
+    # mostrando la tabla exactamente como antes (sin esas dos columnas) en
+    # vez de que la página se rompa.
+    hay_promedio_nota = {"PROMEDIO_APRUEBAN", "PROMEDIO_PIERDEN"}.issubset(datos_docente.columns)
+
+    if hay_promedio_nota:
+        # Ojo: PROMEDIO_APRUEBAN/PROMEDIO_PIERDEN ya vienen como un promedio
+        # por fila (por grupo) -- promediar esos promedios directo estaría
+        # MAL en cuanto dos grupos de la misma materia+programa+territorial+
+        # período tengan tamaños distintos. Por eso se pondera por APRUEBAN/
+        # PIERDEN (ver datos.promedio_ponderado_nota) en vez de un .agg(mean).
+        detalle = (
+            datos_docente.groupby(llaves_detalle, observed=True, dropna=False)
+            .apply(lambda g: pd.Series({
+                "matriculados": g["MATRICULADOS"].sum(),
+                "aprueban": g["APRUEBAN"].sum(),
+                "pierden": g["PIERDEN"].sum(),
+                "promedio_aprueban": datos.promedio_ponderado_nota(g["PROMEDIO_APRUEBAN"], g["APRUEBAN"]),
+                "promedio_pierden": datos.promedio_ponderado_nota(g["PROMEDIO_PIERDEN"], g["PIERDEN"]),
+            }), include_groups=False)
+            .reset_index()
+        )
+        # .apply() de arriba sube todo a float (por mezclar con los promedios)
+        # -- se regresan los conteos a entero para que se vean como "6", no "6.0".
+        detalle[["matriculados", "aprueban", "pierden"]] = (
+            detalle[["matriculados", "aprueban", "pierden"]].astype(int)
+        )
+    else:
+        detalle = (
+            datos_docente.groupby(llaves_detalle, observed=True, dropna=False)
+            .agg(matriculados=("MATRICULADOS", "sum"), aprueban=("APRUEBAN", "sum"), pierden=("PIERDEN", "sum"))
+            .reset_index()
+        )
+
     detalle["tasa_perdida"] = (detalle["pierden"] / detalle["matriculados"] * 100).round(1)
     detalle = detalle.rename(columns={
         "NOM_MATERIA": "Materia", "NOMBRE_PROGRAMA": "Programa", "TERRITORIAL": "Territorial", "COD_PERIODO": "Período",
         "matriculados": "Matriculados", "aprueban": "Aprueban", "pierden": "Pierden",
+        "promedio_aprueban": "Promedio aprueban", "promedio_pierden": "Promedio pierden",
         "tasa_perdida": "Tasa pérdida",
     }).sort_values(["Período", "Materia"], ascending=[False, True])
 
-    st.dataframe(
-        detalle, width="stretch", hide_index=True,
-        column_config={
-            "Matriculados": st.column_config.NumberColumn(alignment="center"),
-            "Aprueban": st.column_config.NumberColumn(alignment="center"),
-            "Pierden": st.column_config.NumberColumn(alignment="center"),
-            "Tasa pérdida": st.column_config.ProgressColumn(format="%.1f%%", min_value=0, max_value=100),
-        },
-    )
+    config_columnas = {
+        "Matriculados": st.column_config.NumberColumn(alignment="center"),
+        "Aprueban": st.column_config.NumberColumn(alignment="center"),
+        "Pierden": st.column_config.NumberColumn(alignment="center"),
+        "Tasa pérdida": st.column_config.ProgressColumn(format="%.1f%%", min_value=0, max_value=100),
+    }
+    if hay_promedio_nota:
+        config_columnas["Promedio aprueban"] = st.column_config.NumberColumn(format="%.2f", alignment="center")
+        config_columnas["Promedio pierden"] = st.column_config.NumberColumn(format="%.2f", alignment="center")
+
+    st.dataframe(detalle, width="stretch", hide_index=True, column_config=config_columnas)
