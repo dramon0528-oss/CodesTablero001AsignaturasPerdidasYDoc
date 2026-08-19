@@ -17,8 +17,12 @@ de respuesta puede filtrar información sobre la contraseña real).
 """
 
 import hmac
+from pathlib import Path
 
 import streamlit as st
+
+# Mismo path absoluto que usa app.py para el logo -- ver el comentario ahí.
+LOGO = Path(__file__).parent / "assets" / "logo_esap.png"
 
 
 def check_password() -> bool:
@@ -46,7 +50,10 @@ def check_password() -> bool:
     if st.session_state.get("password_correct", False):
         return True
 
-    st.markdown("## 🔒 Tablero de Seguimiento Académico — ESAP")
+    _col_izq, _col_logo, _col_der = st.columns([1, 2, 1])
+    _col_logo.image(str(LOGO))
+
+    st.markdown("<h2 style='text-align: center;'>🔒 Tablero de Seguimiento Académico</h2>", unsafe_allow_html=True)
     st.text_input(
         "Contraseña",
         type="password",

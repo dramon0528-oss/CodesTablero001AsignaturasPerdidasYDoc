@@ -7,11 +7,18 @@ Correr localmente:
     streamlit run app.py
 """
 
+from pathlib import Path
+
 import streamlit as st
 
 import datos
 import sincronizar_datos
 from auth import check_password
+
+# Path absoluto (no un string relativo como "assets/logo.png") por la misma
+# razón que datos.py usa Path(__file__).parent para la carpeta de datos: así
+# el logo se encuentra sin importar desde qué directorio arranque el proceso.
+LOGO = Path(__file__).parent / "assets" / "logo_esap.png"
 
 st.set_page_config(
     page_title="ESAP · Seguimiento Académico",
@@ -21,6 +28,13 @@ st.set_page_config(
 
 if not check_password():
     st.stop()
+
+# Logo institucional: arriba a la izquierda de la barra lateral en todas las
+# páginas (y en el encabezado si alguien colapsa la barra). Streamlit lo
+# redimensiona solo -- "large" es la opción más grande disponible (32px de
+# alto); el archivo es horizontal (escudo + texto), tal como recomienda la
+# documentación para este parámetro.
+st.logo(LOGO, size="large")
 
 paginas = {
     "Historia académica": [

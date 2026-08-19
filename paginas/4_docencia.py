@@ -118,6 +118,11 @@ else:
     }).sort_values(["Período", "Materia"], ascending=[False, True])
 
     st.dataframe(
-        detalle, width="stretch", hide_index=True,
-        column_config={"Tasa pérdida": st.column_config.ProgressColumn(format="%.1f%%", min_value=0, max_value=100)},
-    )
+    detalle, width="stretch", hide_index=True,
+    column_config={
+        "Matriculados": st.column_config.NumberColumn(alignment="center"),
+        "Aprueban": st.column_config.NumberColumn(alignment="center"),
+        "Pierden": st.column_config.NumberColumn(alignment="center"),
+        "Tasa pérdida": st.column_config.ProgressColumn(format="%.1f%%", min_value=0, max_value=100),
+    },
+)
