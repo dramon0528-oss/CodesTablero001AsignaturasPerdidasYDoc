@@ -1,0 +1,14 @@
+# Datos reales (nombres/identificación de estudiantes) -- NUNCA subir esto
+# a este repositorio, que ahora es PÚBLICO. Los datos viven aparte, en un
+# repositorio privado, y la app los trae sola en tiempo de ejecución (ver
+# sincronizar_datos.py). Esta línea es solo un segundo seguro -- nunca debería
+# llegar a hacer falta si seguís el flujo del README.
+data/
+
+# Contraseña y token de acceso al repo de datos -- nunca se suben a git, se
+# configuran aparte como "secrets" en Streamlit Cloud.
+.streamlit/secrets.toml
+
+__pycache__/
+*.pyc
+.DS_Store
